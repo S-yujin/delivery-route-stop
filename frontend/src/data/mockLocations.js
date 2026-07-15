@@ -1,0 +1,32 @@
+export const mockLocations = [
+  {
+    id: "D1",
+    type: "destination",
+    name: "배송지 1",
+    address: "대전광역시 서구 둔산로 100",
+    lat: 36.3504,
+    lng: 127.3845,
+  },
+  {
+    id: "P1",
+    type: "stop",
+    name: "정차 후보지 A",
+    address: "대전광역시 서구 둔산로 인근",
+    lat: 36.351,
+    lng: 127.385,
+    score: 87,
+    walkingDistance: 80,
+    reason: "배송지와 가깝고 교통 방해 가능성이 낮습니다.",
+  },
+  {
+    id: "P2",
+    type: "stop",
+    name: "정차 후보지 B",
+    address: "대전광역시 서구 시청로 인근",
+    lat: 36.3498,
+    lng: 127.3839,
+    score: 74,
+    walkingDistance: 140,
+    reason: "정차 공간은 넓지만 배송지까지 도보 거리가 더 깁니다.",
+  },
+];
