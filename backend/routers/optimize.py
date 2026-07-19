@@ -142,11 +142,23 @@ class StopCandidate(BaseModel):
         examples=["S001"],
     )
 
+    destination_id: str | None = Field(
+        default=None,
+        description="정차 후보지가 연결된 배송지 ID",
+        examples=["D001"],
+    )
+
     name: str = Field(
         ...,
         min_length=1,
         description="정차 후보지 이름",
         examples=["대전역 서광장 정차 후보지"],
+    )
+
+    address: str | None = Field(
+        default=None,
+        description="정차 후보지 주소",
+        examples=["대전광역시 동구 중앙로 215 인근"],
     )
 
     latitude: float = Field(

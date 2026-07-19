@@ -468,9 +468,16 @@ def optimize_delivery_stop(
         "success": True,
         "selected_stop": {
             "id": selected_candidate["id"],
+            "destination_id": selected_candidate.get(
+                "destination_id"
+            ),
             "name": selected_candidate.get(
                 "name",
                 selected_candidate["id"],
+            ),
+            "address": selected_candidate.get(
+                "address",
+                "",
             ),
             "latitude": float(
                 selected_candidate["latitude"]
