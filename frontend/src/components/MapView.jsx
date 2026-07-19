@@ -3,6 +3,11 @@ import { loadNaverMap } from "../utils/loadNaverMap";
 import { mockLocations } from "../data/mockLocations";
 import LocationCard from "./LocationCard";
 
+const defaultCenter = {
+  latitude: 36.3504,
+  longitude: 127.3845,
+};
+
 function MapView() {
   const mapElement = useRef(null);
   const mapInstance = useRef(null);
@@ -29,7 +34,10 @@ function MapView() {
           return;
         }
 
-        const center = new naver.maps.LatLng(36.3504, 127.3845);
+        const center = new naver.maps.LatLng(
+          defaultCenter.latitude,
+          defaultCenter.longitude
+        );
 
         mapInstance.current = new naver.maps.Map(mapElement.current, {
           center,
@@ -42,8 +50,8 @@ function MapView() {
 
         markerInstances.current = mockLocations.map((location) => {
           const position = new naver.maps.LatLng(
-            location.lat,
-            location.lng
+            location.latitude,
+            location.longitude
           );
 
           const marker = new naver.maps.Marker({
@@ -64,7 +72,10 @@ function MapView() {
 
         mockLocations.forEach((location) => {
           bounds.extend(
-            new naver.maps.LatLng(location.lat, location.lng)
+            new naver.maps.LatLng(
+              location.latitude,
+              location.longitude
+            )
           );
         });
 
@@ -100,8 +111,8 @@ function MapView() {
     }
 
     const position = new window.naver.maps.LatLng(
-      location.lat,
-      location.lng
+      location.latitude,
+      location.longitude
     );
 
     mapInstance.current.panTo(position);
