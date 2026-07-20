@@ -39,6 +39,13 @@ function ResultPage() {
     motorcycle: "이륜차",
   };
 
+  const routeSummary = {
+  totalDistanceKm: 8.3,
+  estimatedTimeMinutes: 42,
+  savedTimeMinutes: 11,
+  candidateCount: 2,
+  };
+
   return (
     <main>
       <div className="page-header">
@@ -93,6 +100,68 @@ function ResultPage() {
           ))}
         </div>
       </section>
+
+      <section className="route-order-section">
+        <div className="section-heading">
+          <h2>추천 배송 순서</h2>
+          <p>현재는 입력한 순서대로 임시 표시합니다.</p>
+        </div>
+
+        <div className="route-order-list">
+          <div className="route-order-item route-start-item">
+            <span className="route-order-badge start-badge">
+              출발
+            </span>
+
+            <div className="route-order-content">
+              <strong>{start}</strong>
+              <span>배송 시작 위치</span>
+            </div>
+          </div>
+
+          {destinations.map((destination, index) => (
+            <div
+              className="route-order-item"
+              key={`${destination}-${index}`}
+            >
+              <span className="route-order-badge">
+                {index + 1}
+              </span>
+
+              <div className="route-order-content">
+                <strong>{destination}</strong>
+                <span>{index + 1}번째 배송지</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="result-summary-section">
+        <h2>경로 요약</h2>
+
+        <div className="result-summary-grid">
+          <div className="result-summary-card">
+           <span>총 이동 거리</span>
+           <strong>{routeSummary.totalDistanceKm}km</strong>
+        </div>
+
+        <div className="result-summary-card">
+         <span>예상 소요 시간</span>
+          <strong>{routeSummary.estimatedTimeMinutes}분</strong>
+       </div>
+
+        <div className="result-summary-card highlight">
+          <span>예상 절감 시간</span>
+          <strong>{routeSummary.savedTimeMinutes}분</strong>
+       </div>
+
+        <div className="result-summary-card">
+          <span>정차 후보지</span>
+          <strong>{routeSummary.candidateCount}곳</strong>
+        </div>
+      </div>
+     </section>
 
       <section>
         <h2>배송 경로 지도</h2>

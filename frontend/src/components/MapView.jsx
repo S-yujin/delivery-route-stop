@@ -8,10 +8,35 @@ const defaultCenter = {
   longitude: 127.3845,
 };
 
+function getMarkerContent(location) {
+  if (location.type === "start") {
+    return `
+      <div class="custom-marker marker-start">
+        <span>출발</span>
+      </div>
+    `;
+  }
+
+  if (location.type === "destination") {
+    return `
+      <div class="custom-marker marker-destination">
+        <span>${location.order ?? ""}</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="custom-marker marker-stop">
+      <span>P</span>
+    </div>
+  `;
+}
+
 function MapView() {
   const mapElement = useRef(null);
   const mapInstance = useRef(null);
   const markerInstances = useRef([]);
+  const polylineInstance = useRef(null);
 
   const [selectedId, setSelectedId] = useState("P1");
 
@@ -58,6 +83,10 @@ function MapView() {
             position,
             map: mapInstance.current,
             title: location.name,
+            icon: {
+              content: getMarkerContent(location),
+              anchor: new naver.maps.Point(20, 42),
+            },
           });
 
           naver.maps.Event.addListener(marker, "click", () => {
@@ -80,14 +109,39 @@ function MapView() {
         });
 
         mapInstance.current.fitBounds(bounds);
-      } catch (error) {
-        console.error(error);
-      }
-    }
 
-    initializeMap();
-
-    return () => {
+        const routeLocations = mockLocations.filter(
+          (location) =>
+            location.type === "start" ||
+          location.type === "destination"
+        );
+        
+        const routePath = routeLocations.map(
+          (location) =>
+            new naver.maps.LatLng(
+              location.latitude,
+              location.longitude
+            )
+          );
+          
+          polylineInstance.current = new naver.maps.Polyline({
+              map: mapInstance.current,
+              path: routePath,
+              strokeWeight: 5,
+              strokeOpacity: 0.85,
+              strokeLineCap: "round",
+              strokeLineJoin: "round",
+            });
+          } catch (error) {
+            console.error(error);
+          }
+         }
+         
+         initializeMap();
+         
+      return () => {
+      
+      
       isMounted = false;
 
       markerInstances.current.forEach((marker) => {
@@ -95,6 +149,11 @@ function MapView() {
       });
 
       markerInstances.current = [];
+
+      if (polylineInstance.current) {
+          polylineInstance.current.setMap(null);polylineInstance.current = null;
+        }
+      
 
       if (mapInstance.current) {
         mapInstance.current.destroy();

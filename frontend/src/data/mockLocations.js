@@ -1,9 +1,18 @@
 export const mockLocations = [
   {
+    id: "S1",
+    type: "start",
+    name: "출발지",
+    address: "대전역",
+    latitude: 36.332,
+    longitude: 127.434,
+  },
+  {
     id: "D1",
     type: "destination",
+    order: 1,
     name: "배송지 1",
-    address: "대전광역시 서구 둔산동",
+    address: "대전광역시 서구 둔산로 100",
     latitude: 36.3504,
     longitude: 127.3845,
   },
