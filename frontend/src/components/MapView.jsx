@@ -39,10 +39,20 @@ function MapView() {
   const polylineInstance = useRef(null);
 
   const [selectedId, setSelectedId] = useState("P1");
+  const [sortType, setSortType] = useState("score");
 
-  const stopLocations = mockLocations.filter(
-    (location) => location.type === "stop"
-  );
+  const stopLocations = [...mockLocations]
+    .filter((location) => location.type === "stop")
+    .sort((a, b) => {
+      if (sortType === "distance") {
+        return (
+          Number(a.walkingDistance) -
+          Number(b.walkingDistance)
+        );
+      }
+
+      return Number(b.score) - Number(a.score);
+    });
 
   const selectedLocation = mockLocations.find(
     (location) => location.id === selectedId
@@ -55,7 +65,11 @@ function MapView() {
       try {
         const naver = await loadNaverMap();
 
-        if (!isMounted || !mapElement.current || mapInstance.current) {
+        if (
+          !isMounted ||
+          !mapElement.current ||
+          mapInstance.current
+        ) {
           return;
         }
 
@@ -64,38 +78,47 @@ function MapView() {
           defaultCenter.longitude
         );
 
-        mapInstance.current = new naver.maps.Map(mapElement.current, {
-          center,
-          zoom: 14,
-          zoomControl: true,
-          zoomControlOptions: {
-            position: naver.maps.Position.TOP_RIGHT,
-          },
-        });
-
-        markerInstances.current = mockLocations.map((location) => {
-          const position = new naver.maps.LatLng(
-            location.latitude,
-            location.longitude
-          );
-
-          const marker = new naver.maps.Marker({
-            position,
-            map: mapInstance.current,
-            title: location.name,
-            icon: {
-              content: getMarkerContent(location),
-              anchor: new naver.maps.Point(20, 42),
+        mapInstance.current = new naver.maps.Map(
+          mapElement.current,
+          {
+            center,
+            zoom: 14,
+            zoomControl: true,
+            zoomControlOptions: {
+              position: naver.maps.Position.TOP_RIGHT,
             },
-          });
+          }
+        );
 
-          naver.maps.Event.addListener(marker, "click", () => {
-            setSelectedId(location.id);
-            mapInstance.current.panTo(position);
-          });
+        markerInstances.current = mockLocations.map(
+          (location) => {
+            const position = new naver.maps.LatLng(
+              location.latitude,
+              location.longitude
+            );
 
-          return marker;
-        });
+            const marker = new naver.maps.Marker({
+              position,
+              map: mapInstance.current,
+              title: location.name,
+              icon: {
+                content: getMarkerContent(location),
+                anchor: new naver.maps.Point(20, 42),
+              },
+            });
+
+            naver.maps.Event.addListener(
+              marker,
+              "click",
+              () => {
+                setSelectedId(location.id);
+                mapInstance.current.panTo(position);
+              }
+            );
+
+            return marker;
+          }
+        );
 
         const bounds = new naver.maps.LatLngBounds();
 
@@ -113,35 +136,34 @@ function MapView() {
         const routeLocations = mockLocations.filter(
           (location) =>
             location.type === "start" ||
-          location.type === "destination"
+            location.type === "destination"
         );
-        
+
         const routePath = routeLocations.map(
           (location) =>
             new naver.maps.LatLng(
               location.latitude,
               location.longitude
             )
-          );
-          
-          polylineInstance.current = new naver.maps.Polyline({
-              map: mapInstance.current,
-              path: routePath,
-              strokeWeight: 5,
-              strokeOpacity: 0.85,
-              strokeLineCap: "round",
-              strokeLineJoin: "round",
-            });
-          } catch (error) {
-            console.error(error);
-          }
-         }
-         
-         initializeMap();
-         
-      return () => {
-      
-      
+        );
+
+        polylineInstance.current =
+          new naver.maps.Polyline({
+            map: mapInstance.current,
+            path: routePath,
+            strokeWeight: 5,
+            strokeOpacity: 0.85,
+            strokeLineCap: "round",
+            strokeLineJoin: "round",
+          });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    initializeMap();
+
+    return () => {
       isMounted = false;
 
       markerInstances.current.forEach((marker) => {
@@ -151,9 +173,9 @@ function MapView() {
       markerInstances.current = [];
 
       if (polylineInstance.current) {
-          polylineInstance.current.setMap(null);polylineInstance.current = null;
-        }
-      
+        polylineInstance.current.setMap(null);
+        polylineInstance.current = null;
+      }
 
       if (mapInstance.current) {
         mapInstance.current.destroy();
@@ -183,43 +205,87 @@ function MapView() {
       <div ref={mapElement} className="naver-map" />
 
       <aside className="location-sidebar">
-        <h2>추천 정차 후보지</h2>
+        <div className="candidate-header">
+          <h2>추천 정차 후보지</h2>
 
-        <div className="location-list">
-          {stopLocations.map((location) => (
-            <LocationCard
-              key={location.id}
-              location={location}
-              selected={selectedId === location.id}
-              onClick={() => handleLocationClick(location)}
-            />
-          ))}
+          <select
+            className="candidate-sort"
+            value={sortType}
+            onChange={(event) =>
+              setSortType(event.target.value)
+            }
+          >
+            <option value="score">
+              점수 높은 순
+            </option>
+            <option value="distance">
+              도보 거리 짧은 순
+            </option>
+          </select>
         </div>
 
-        {selectedLocation && (
-          <div className="selected-location">
-            <h3>{selectedLocation.name}</h3>
-            <p>{selectedLocation.address}</p>
+        {stopLocations.length > 0 ? (
+          <div className="location-list">
+            {stopLocations.map((location) => (
+              <LocationCard
+                key={location.id}
+                location={location}
+                selected={selectedId === location.id}
+                onClick={() =>
+                  handleLocationClick(location)
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-candidates">
+            <strong>
+              추천 가능한 정차 후보지가 없습니다.
+            </strong>
 
-            {selectedLocation.score !== undefined && (
-              <p>
-                하역 적합도:{" "}
-                <strong>{selectedLocation.score}점</strong>
-              </p>
-            )}
+            <p>
+              검색 조건을 변경하거나 잠시 후 다시
+              시도해 주세요.
+            </p>
 
-            {selectedLocation.walkingDistance !== undefined && (
-              <p>
-                배송지까지 도보 거리:{" "}
-                {selectedLocation.walkingDistance}m
-              </p>
-            )}
-
-            {selectedLocation.reason && (
-              <p>{selectedLocation.reason}</p>
-            )}
+            <button
+              type="button"
+              className="retry-button"
+              onClick={() => window.location.reload()}
+            >
+              다시 시도
+            </button>
           </div>
         )}
+
+        {stopLocations.length > 0 &&
+          selectedLocation && (
+            <div className="selected-location">
+              <h3>{selectedLocation.name}</h3>
+              <p>{selectedLocation.address}</p>
+
+              {selectedLocation.score !== undefined && (
+                <p>
+                  하역 적합도:{" "}
+                  <strong>
+                    {selectedLocation.score}점
+                  </strong>
+                </p>
+              )}
+
+              {selectedLocation.walkingDistance !==
+                undefined && (
+                <p>
+                  배송지까지 도보 거리:{" "}
+                  {selectedLocation.walkingDistance}m
+                </p>
+              )}
+
+              {selectedLocation.reason && (
+                <p>{selectedLocation.reason}</p>
+              )}
+            </div>
+          )}
       </aside>
     </section>
   );

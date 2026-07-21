@@ -1,41 +1,6 @@
+import { mockRouteResponse } from "./mockRouteResponse";
+
 export const mockLocations = [
-  {
-    id: "S1",
-    type: "start",
-    name: "출발지",
-    address: "대전역",
-    latitude: 36.332,
-    longitude: 127.434,
-  },
-  {
-    id: "D1",
-    type: "destination",
-    order: 1,
-    name: "배송지 1",
-    address: "대전광역시 서구 둔산로 100",
-    latitude: 36.3504,
-    longitude: 127.3845,
-  },
-  {
-    id: "P1",
-    type: "stop",
-    name: "정차 후보지 A",
-    address: "대전광역시 서구 둔산로 인근",
-    latitude: 36.354,
-    longitude: 127.389,
-    score: 87,
-    walkingDistance: 80,
-    reason: "배송지와 가깝고 교통 방해 가능성이 낮습니다.",
-  },
-  {
-    id: "P2",
-    type: "stop",
-    name: "정차 후보지 B",
-    address: "대전광역시 서구 시청로 인근",
-    latitude: 36.3465,
-    longitude: 127.3795,
-    score: 74,
-    walkingDistance: 140,
-    reason: "정차 공간은 넓지만 배송지까지 도보 거리가 더 깁니다.",
-  },
+  ...mockRouteResponse.routeOrder,
+  ...mockRouteResponse.stopCandidates,
 ];
