@@ -31,6 +31,8 @@ function ResultPage() {
     destinations,
     vehicleType,
     departureTime,
+    startLocation,
+    destinationLocations = [],
   } = inputData;
 
   const vehicleLabels = {
@@ -165,7 +167,11 @@ function ResultPage() {
 
       <section>
         <h2>배송 경로 지도</h2>
-        <MapView />
+        
+        <MapView 
+          startLocation={startLocation}
+          destinationLocations={destinationLocations}
+        />
       </section>
     </main>
   );

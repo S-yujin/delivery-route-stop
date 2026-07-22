@@ -32,7 +32,10 @@ function getMarkerContent(location) {
   `;
 }
 
-function MapView() {
+function MapView({
+  startLocation,
+  destinationLocations = [],
+}) {
   const mapElement = useRef(null);
   const mapInstance = useRef(null);
   const markerInstances = useRef([]);
@@ -40,6 +43,11 @@ function MapView() {
 
   const [selectedId, setSelectedId] = useState("P1");
   const [sortType, setSortType] = useState("score");
+
+  const routeLocations = [
+    startLocation,
+    ...destinationLocations,
+  ].filter(Boolean);
 
   const stopLocations = [...mockLocations]
     .filter((location) => location.type === "stop")
@@ -54,9 +62,14 @@ function MapView() {
       return Number(b.score) - Number(a.score);
     });
 
-  const selectedLocation = mockLocations.find(
+  const selectedLocation = stopLocations.find(
     (location) => location.id === selectedId
   );
+
+  const allLocations=[
+    ...routeLocations,
+    ...stopLocations,
+  ];
 
   useEffect(() => {
     let isMounted = true;
@@ -90,7 +103,7 @@ function MapView() {
           }
         );
 
-        markerInstances.current = mockLocations.map(
+        markerInstances.current = allLocations.map(
           (location) => {
             const position = new naver.maps.LatLng(
               location.latitude,
@@ -122,7 +135,7 @@ function MapView() {
 
         const bounds = new naver.maps.LatLngBounds();
 
-        mockLocations.forEach((location) => {
+        allLocations.forEach((location) => {
           bounds.extend(
             new naver.maps.LatLng(
               location.latitude,
@@ -132,12 +145,6 @@ function MapView() {
         });
 
         mapInstance.current.fitBounds(bounds);
-
-        const routeLocations = mockLocations.filter(
-          (location) =>
-            location.type === "start" ||
-            location.type === "destination"
-        );
 
         const routePath = routeLocations.map(
           (location) =>
@@ -182,7 +189,7 @@ function MapView() {
         mapInstance.current = null;
       }
     };
-  }, []);
+  }, [startLocation, destinationLocations]);
 
   const handleLocationClick = (location) => {
     setSelectedId(location.id);

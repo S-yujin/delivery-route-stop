@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { geocodeAddress } from "../api/routeApi";
+
+async function geocodeWithMessage(address, label) {
+  try {
+    return await geocodeAddress(address);
+  } catch {
+    throw new Error(
+      `${label} 주소를 찾을 수 없습니다: ${address}`
+    );
+  }
+}
 
 function InputPage() {
   const navigate = useNavigate();
@@ -12,6 +23,7 @@ function InputPage() {
 
   const handleDestinationChange = (index, value) => {
     const updatedDestinations = [...destinations];
+
     updatedDestinations[index] = value;
     setDestinations(updatedDestinations);
   };
@@ -32,7 +44,7 @@ function InputPage() {
     setDestinations(updatedDestinations);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const validDestinations = destinations.filter(
@@ -51,16 +63,61 @@ function InputPage() {
 
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const startGeocode = await geocodeWithMessage(
+        start,
+        "출발지"
+      );
+
+      const destinationGeocodes = await Promise.all(
+        validDestinations.map((address, index) =>
+          geocodeWithMessage(
+            address,
+            `배송지 ${index + 1}`
+          )
+        )
+      );
+
+      const startLocation = {
+        id: "START",
+        type: "start",
+        name: "출발지",
+        address: start,
+        latitude: startGeocode.latitude,
+        longitude: startGeocode.longitude,
+      };
+
+      const destinationLocations =
+        destinationGeocodes.map((geocode, index) => ({
+          id: `D${String(index + 1).padStart(3, "0")}`,
+          type: "destination",
+          order: index + 1,
+          name: `배송지 ${index + 1}`,
+          address: validDestinations[index],
+          latitude: geocode.latitude,
+          longitude: geocode.longitude,
+          delivery_count: 1,
+          service_time_minutes: 10,
+        }));
+
+      console.log("출발지 좌표:", startLocation);
+      console.log("배송지 좌표:", destinationLocations);
+
       navigate("/result", {
         state: {
           start,
           destinations: validDestinations,
           vehicleType,
           departureTime,
+          startLocation,
+          destinationLocations,
         },
       });
-    }, 1000);
+    } catch (error) {
+      console.error("주소 변환 실패:", error);
+      alert(error.message);
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -79,17 +136,22 @@ function InputPage() {
     <main>
       <header className="input-header">
         <h1>CurbRoute AI</h1>
-        <p>배송 경로와 안전한 하역 정차 위치를 추천합니다.</p>
+        <p>
+          배송 경로와 안전한 하역 정차 위치를 추천합니다.
+        </p>
       </header>
 
       <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="start">출발지</label>
+
           <input
             id="start"
             type="text"
             value={start}
-            onChange={(event) => setStart(event.target.value)}
+            onChange={(event) =>
+              setStart(event.target.value)
+            }
             placeholder="예: 대전역"
           />
         </div>
@@ -108,57 +170,88 @@ function InputPage() {
           </div>
 
           <div className="destination-list">
-            {destinations.map((destination, index) => (
-              <div className="destination-row" key={index}>
-                <span className="destination-number">{index + 1}</span>
-
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(event) =>
-                    handleDestinationChange(index, event.target.value)
-                  }
-                  placeholder={`배송지 ${index + 1} 주소`}
-                />
-
-                <button
-                  type="button"
-                  className="remove-destination-button"
-                  onClick={() => handleRemoveDestination(index)}
-                  disabled={destinations.length === 1}
-                  aria-label={`배송지 ${index + 1} 삭제`}
+            {destinations.map(
+              (destination, index) => (
+                <div
+                  className="destination-row"
+                  key={index}
                 >
-                  삭제
-                </button>
-              </div>
-            ))}
+                  <span className="destination-number">
+                    {index + 1}
+                  </span>
+
+                  <input
+                    type="text"
+                    value={destination}
+                    onChange={(event) =>
+                      handleDestinationChange(
+                        index,
+                        event.target.value
+                      )
+                    }
+                    placeholder={`배송지 ${index + 1} 주소`}
+                  />
+
+                  <button
+                    type="button"
+                    className="remove-destination-button"
+                    onClick={() =>
+                      handleRemoveDestination(index)
+                    }
+                    disabled={destinations.length === 1}
+                    aria-label={`배송지 ${index + 1} 삭제`}
+                  >
+                    삭제
+                  </button>
+                </div>
+              )
+            )}
           </div>
         </section>
 
         <div>
           <label htmlFor="vehicleType">차량 종류</label>
+
           <select
             id="vehicleType"
             value={vehicleType}
-            onChange={(event) => setVehicleType(event.target.value)}
+            onChange={(event) =>
+              setVehicleType(event.target.value)
+            }
           >
-            <option value="small-truck">소형 화물차</option>
-            <option value="van">승합차</option>
-            <option value="motorcycle">이륜차</option>
+            <option value="small-truck">
+              소형 화물차
+            </option>
+
+            <option value="van">
+              승합차
+            </option>
+
+            <option value="motorcycle">
+              이륜차
+            </option>
           </select>
         </div>
 
         <div>
-          <label htmlFor="departureTime">출발 예정 시각</label>
+          <label htmlFor="departureTime">
+            출발 예정 시각
+          </label>
+
           <input
             id="departureTime"
             type="time"
             value={departureTime}
-            onChange={(event) => setDepartureTime(event.target.value)}
+            onChange={(event) =>
+              setDepartureTime(event.target.value)
+            }
           />
         </div>
 
-        <button className="full-width-button" type="submit">
+        <button
+          className="full-width-button"
+          type="submit"
+        >
           추천 경로 찾기
         </button>
       </form>
