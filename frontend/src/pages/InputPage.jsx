@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { geocodeAddress } from "../api/routeApi";
+import { 
+  geocodeAddress,
+  getDirections,
+ } from "../api/routeApi";
 
 async function geocodeWithMessage(address, label) {
   try {
@@ -99,9 +102,48 @@ function InputPage() {
           delivery_count: 1,
           service_time_minutes: 10,
         }));
+      
+      const routePoints = [
+        startLocation,
+        ...destinationLocations,
+      ];
+
+      const directionResults = await Promise.all(
+        routePoints.slice(0, -1).map((point, index) =>
+          getDirections(point, routePoints[index + 1])
+      )
+    );
+
+    const  totalDistanceKm = directionResults.reduce(
+      (total, result) =>
+        total + Number(result.distance_km ?? 0),0
+    );
+
+    const totalDurationMinutes = directionResults.reduce(
+      (total, result) =>
+        total + Number(result.duration_minutes ?? 0), 0
+    );
+
+    const routePath = directionResults.flatMap(
+      (result, index) => {
+        const path = result.path ?? [];
+
+        //구간 경계의 중복 좌표 제거
+        return index === 0 ? path : path.slice(1);
+      }
+    );
+
+    const directionsResult = {
+      totalDistanceKm:
+        Math.round(totalDistanceKm * 100) / 100,
+      totalDurationMinutes:
+        Math.round(totalDurationMinutes * 10) / 10,
+      path: routePath,
+    };
 
       console.log("출발지 좌표:", startLocation);
-      console.log("배송지 좌표:", destinationLocations);
+      console.log("배송지 좌표:",destinationLocations);
+      console.log("경로 응답:", directionsResult);
 
       navigate("/result", {
         state: {
@@ -111,6 +153,7 @@ function InputPage() {
           departureTime,
           startLocation,
           destinationLocations,
+          directionsResult,
         },
       });
     } catch (error) {

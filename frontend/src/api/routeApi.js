@@ -35,3 +35,22 @@ export async function optimizeRoute(requestData) {
     body: JSON.stringify(requestData),
   });
 }
+
+export async function getDirections(start, goal) {
+  return requestApi("/api/routes/directions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      start: {
+        longitude: start.longitude,
+        latitude: start.latitude,
+      },
+      goal: {
+        longitude: goal.longitude,
+        latitude: goal.latitude,
+      },
+    }),
+  });
+}

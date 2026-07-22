@@ -35,6 +35,7 @@ function getMarkerContent(location) {
 function MapView({
   startLocation,
   destinationLocations = [],
+  directionsResult,
 }) {
   const mapElement = useRef(null);
   const mapInstance = useRef(null);
@@ -146,13 +147,22 @@ function MapView({
 
         mapInstance.current.fitBounds(bounds);
 
-        const routePath = routeLocations.map(
-          (location) =>
-            new naver.maps.LatLng(
-              location.latitude,
-              location.longitude
-            )
-        );
+        const routePath = 
+          directionsResult?.path?.length > 0
+            ? directionsResult.path.map(
+              ([longitude, latitude]) =>
+                new naver.maps.LatLng(
+                  latitude,
+                  longitude
+                )
+              )
+            :routeLocations.map(
+              (location) =>
+                new naver.maps.LatLng(
+                  location.latitude,
+                  location.longitude
+                )
+          );
 
         polylineInstance.current =
           new naver.maps.Polyline({
@@ -189,7 +199,11 @@ function MapView({
         mapInstance.current = null;
       }
     };
-  }, [startLocation, destinationLocations]);
+  }, [
+    startLocation, 
+    destinationLocations,
+  directionsResult,
+]);
 
   const handleLocationClick = (location) => {
     setSelectedId(location.id);

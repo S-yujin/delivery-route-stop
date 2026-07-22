@@ -33,6 +33,7 @@ function ResultPage() {
     departureTime,
     startLocation,
     destinationLocations = [],
+    directionsResult,
   } = inputData;
 
   const vehicleLabels = {
@@ -42,11 +43,18 @@ function ResultPage() {
   };
 
   const routeSummary = {
-  totalDistanceKm: 8.3,
-  estimatedTimeMinutes: 42,
-  savedTimeMinutes: 11,
-  candidateCount: 2,
-  };
+    totalDistanceKm:
+      directionsResult?.totalDistanceKm ?? 0,
+
+   estimatedTimeMinutes:
+      directionsResult?.totalDurationMinutes ?? 0,
+
+    //임시하드코딩
+    savedTimeMinutes: 0,
+
+    //임시하드코딩
+    candidateCount: 2,
+};
 
   return (
     <main>
@@ -167,10 +175,11 @@ function ResultPage() {
 
       <section>
         <h2>배송 경로 지도</h2>
-        
+
         <MapView 
           startLocation={startLocation}
           destinationLocations={destinationLocations}
+          directionsResult={directionsResult}
         />
       </section>
     </main>
