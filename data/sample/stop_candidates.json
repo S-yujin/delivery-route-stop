@@ -1,0 +1,40 @@
+{
+  "stop_candidates": [
+    {
+      "id": "S001",
+      "destination_id": "D001",
+      "name": "대전역 서광장 정차 후보지",
+      "address": "대전광역시 동구 중앙로 215 인근",
+      "latitude": 36.3325,
+      "longitude": 127.433,
+      "parking_available": true,
+      "max_stop_minutes": 15,
+      "road_width_score": 4,
+      "safety_score": 4
+    },
+    {
+      "id": "S002",
+      "destination_id": "D002",
+      "name": "중앙로역 인근 정차 후보지",
+      "address": "대전광역시 중구 중앙로역 인근",
+      "latitude": 36.3289,
+      "longitude": 127.4245,
+      "parking_available": true,
+      "max_stop_minutes": 10,
+      "road_width_score": 3,
+      "safety_score": 3
+    },
+    {
+      "id": "S003",
+      "destination_id": "D003",
+      "name": "대흥동 인근 정차 후보지",
+      "address": "대전광역시 중구 대흥동 인근",
+      "latitude": 36.326,
+      "longitude": 127.4275,
+      "parking_available": false,
+      "max_stop_minutes": 5,
+      "road_width_score": 2,
+      "safety_score": 3
+    }
+  ]
+}
