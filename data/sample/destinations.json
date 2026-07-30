@@ -1,0 +1,49 @@
+{
+  "destinations": [
+    {
+      "id": "D001",
+      "name": "대전역 배송지",
+      "address": "대전광역시 동구 중앙로 215",
+      "latitude": 36.3321,
+      "longitude": 127.4342,
+      "delivery_count": 3,
+      "service_time_minutes": 5
+    },
+    {
+      "id": "D002",
+      "name": "중앙로역 배송지",
+      "address": "대전광역시 중구 중앙로 145",
+      "latitude": 36.3285,
+      "longitude": 127.4250,
+      "delivery_count": 2,
+      "service_time_minutes": 5
+    },
+    {
+      "id": "D003",
+      "name": "대흥동 배송지",
+      "address": "대전광역시 중구 대흥로 167",
+      "latitude": 36.3255,
+      "longitude": 127.4268,
+      "delivery_count": 4,
+      "service_time_minutes": 7
+    },
+    {
+      "id": "D004",
+      "name": "은행동 배송지",
+      "address": "대전광역시 중구 중앙로164번길 17",
+      "latitude": 36.3298,
+      "longitude": 127.4282,
+      "delivery_count": 1,
+      "service_time_minutes": 4
+    },
+    {
+      "id": "D005",
+      "name": "선화동 배송지",
+      "address": "대전광역시 중구 선화서로 46",
+      "latitude": 36.3347,
+      "longitude": 127.4215,
+      "delivery_count": 5,
+      "service_time_minutes": 8
+    }
+  ]
+}

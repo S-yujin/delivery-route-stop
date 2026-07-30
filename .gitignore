@@ -1,4 +1,18 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+backend/.env
+
+# Virtual environment
+venv/
+.venv/
+
+# Editor
+.vscode/
+
+# OS files
 .DS_Store
 Thumbs.db
-node_modules/
-__pycache__/
