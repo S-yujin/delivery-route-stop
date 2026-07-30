@@ -314,71 +314,285 @@ def _get_candidates_for_destination(
         if candidate.get("destination_id") in {None, ""}
     ]
 
+def _calculate_route_distance(
+    start: dict[str, Any],
+    ordered_results: list[dict[str, Any]],
+) -> float:
+    """
+    출발지에서 시작하여 추천 정차지를 순서대로 방문할 때
+    전체 직선거리 합계를 계산한다.
+    """
 
-def _build_nearest_neighbor_order(
-    start: dict[str, Any] | None,
+    current_latitude = float(start["latitude"])
+    current_longitude = float(start["longitude"])
+    total_distance_m = 0.0
+
+    for result in ordered_results:
+        stop = result["recommended_stop"]
+
+        total_distance_m += calculate_straight_distance(
+            start_latitude=current_latitude,
+            start_longitude=current_longitude,
+            goal_latitude=float(stop["latitude"]),
+            goal_longitude=float(stop["longitude"]),
+        )
+
+        current_latitude = float(stop["latitude"])
+        current_longitude = float(stop["longitude"])
+
+    return total_distance_m
+
+
+def _build_nearest_neighbor_sequence(
+    start: dict[str, Any],
     destination_results: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """추천 정차지 좌표를 기준으로 최근접 이웃 배송 순서를 만든다."""
-    selectable_results = [
+    """
+    최근접 이웃 방식으로 배송지 방문 순서를 생성한다.
+    """
+
+    remaining = [
         result
         for result in destination_results
         if result.get("recommended_stop") is not None
     ]
-    if not selectable_results:
-        return []
-
-    if start is None:
-        return [
-            {
-                "order": index,
-                "destination_id": result["destination_id"],
-                "destination_name": result["destination_name"],
-                "stop_candidate_id": result["recommended_stop"][
-                    "candidate_id"
-                ],
-                "distance_from_previous_m": None,
-            }
-            for index, result in enumerate(selectable_results, start=1)
-        ]
 
     current_latitude = float(start["latitude"])
     current_longitude = float(start["longitude"])
-    remaining = selectable_results.copy()
-    ordered: list[dict[str, Any]] = []
+    ordered_results: list[dict[str, Any]] = []
 
     while remaining:
         next_result = min(
             remaining,
             key=lambda result: calculate_straight_distance(
-                current_latitude,
-                current_longitude,
-                float(result["recommended_stop"]["latitude"]),
-                float(result["recommended_stop"]["longitude"]),
+                start_latitude=current_latitude,
+                start_longitude=current_longitude,
+                goal_latitude=float(
+                    result["recommended_stop"]["latitude"]
+                ),
+                goal_longitude=float(
+                    result["recommended_stop"]["longitude"]
+                ),
             ),
         )
-        next_stop = next_result["recommended_stop"]
-        distance_m = calculate_straight_distance(
-            current_latitude,
-            current_longitude,
-            float(next_stop["latitude"]),
-            float(next_stop["longitude"]),
-        )
 
-        ordered.append(
-            {
-                "order": len(ordered) + 1,
-                "destination_id": next_result["destination_id"],
-                "destination_name": next_result["destination_name"],
-                "stop_candidate_id": next_stop["candidate_id"],
-                "distance_from_previous_m": round(distance_m, 1),
-            }
-        )
+        ordered_results.append(next_result)
+
+        next_stop = next_result["recommended_stop"]
         current_latitude = float(next_stop["latitude"])
         current_longitude = float(next_stop["longitude"])
+
         remaining.remove(next_result)
 
-    return ordered
+    return ordered_results
+
+
+def _apply_two_opt(
+    start: dict[str, Any],
+    initial_sequence: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    최근접 이웃 경로에 2-opt를 적용하여
+    전체 이동거리가 더 짧은 순서를 찾는다.
+    """
+
+    if len(initial_sequence) < 3:
+        return initial_sequence
+
+    best_sequence = initial_sequence.copy()
+    best_distance = _calculate_route_distance(
+        start=start,
+        ordered_results=best_sequence,
+    )
+
+    improved = True
+
+    while improved:
+        improved = False
+
+        for start_index in range(len(best_sequence) - 1):
+            for end_index in range(
+                start_index + 1,
+                len(best_sequence),
+            ):
+                candidate_sequence = (
+                    best_sequence[:start_index]
+                    + list(
+                        reversed(
+                            best_sequence[
+                                start_index : end_index + 1
+                            ]
+                        )
+                    )
+                    + best_sequence[end_index + 1 :]
+                )
+
+                candidate_distance = _calculate_route_distance(
+                    start=start,
+                    ordered_results=candidate_sequence,
+                )
+
+                if candidate_distance < best_distance:
+                    best_sequence = candidate_sequence
+                    best_distance = candidate_distance
+                    improved = True
+                    break
+
+            if improved:
+                break
+
+    return best_sequence
+
+
+def _format_delivery_order(
+    start: dict[str, Any],
+    ordered_results: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    배송 순서를 API 응답 형식으로 변환한다.
+    """
+
+    current_latitude = float(start["latitude"])
+    current_longitude = float(start["longitude"])
+    delivery_order: list[dict[str, Any]] = []
+
+    for order, result in enumerate(
+        ordered_results,
+        start=1,
+    ):
+        stop = result["recommended_stop"]
+
+        distance_m = calculate_straight_distance(
+            start_latitude=current_latitude,
+            start_longitude=current_longitude,
+            goal_latitude=float(stop["latitude"]),
+            goal_longitude=float(stop["longitude"]),
+        )
+
+        delivery_order.append(
+            {
+                "order": order,
+                "destination_id": result["destination_id"],
+                "destination_name": result[
+                    "destination_name"
+                ],
+                "stop_candidate_id": stop["candidate_id"],
+                "distance_from_previous_m": round(
+                    distance_m,
+                    1,
+                ),
+            }
+        )
+
+        current_latitude = float(stop["latitude"])
+        current_longitude = float(stop["longitude"])
+
+    return delivery_order
+
+def _build_optimized_delivery_order(
+    start: dict[str, Any] | None,
+    destination_results: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    최근접 이웃으로 초기 경로를 만든 후
+    2-opt를 적용해 경로를 개선한다.
+    """
+
+    selectable_results = [
+        result
+        for result in destination_results
+        if result.get("recommended_stop") is not None
+    ]
+
+    if not selectable_results:
+        return [], {
+            "algorithm": "none",
+            "initial_distance_m": 0,
+            "optimized_distance_m": 0,
+            "improvement_distance_m": 0,
+            "improvement_percent": 0,
+        }
+
+    if start is None:
+        delivery_order = [
+            {
+                "order": index,
+                "destination_id": result["destination_id"],
+                "destination_name": result[
+                    "destination_name"
+                ],
+                "stop_candidate_id": result[
+                    "recommended_stop"
+                ]["candidate_id"],
+                "distance_from_previous_m": None,
+            }
+            for index, result in enumerate(
+                selectable_results,
+                start=1,
+            )
+        ]
+
+        return delivery_order, {
+            "algorithm": "input_order",
+            "initial_distance_m": None,
+            "optimized_distance_m": None,
+            "improvement_distance_m": None,
+            "improvement_percent": None,
+        }
+
+    nearest_neighbor_sequence = (
+        _build_nearest_neighbor_sequence(
+            start=start,
+            destination_results=selectable_results,
+        )
+    )
+
+    initial_distance_m = _calculate_route_distance(
+        start=start,
+        ordered_results=nearest_neighbor_sequence,
+    )
+
+    optimized_sequence = _apply_two_opt(
+        start=start,
+        initial_sequence=nearest_neighbor_sequence,
+    )
+
+    optimized_distance_m = _calculate_route_distance(
+        start=start,
+        ordered_results=optimized_sequence,
+    )
+
+    improvement_distance_m = (
+        initial_distance_m - optimized_distance_m
+    )
+
+    improvement_percent = (
+        improvement_distance_m / initial_distance_m * 100
+        if initial_distance_m > 0
+        else 0
+    )
+
+    delivery_order = _format_delivery_order(
+        start=start,
+        ordered_results=optimized_sequence,
+    )
+
+    return delivery_order, {
+        "algorithm": "nearest_neighbor_with_two_opt",
+        "initial_distance_m": round(initial_distance_m, 1),
+        "optimized_distance_m": round(
+            optimized_distance_m,
+            1,
+        ),
+        "improvement_distance_m": round(
+            improvement_distance_m,
+            1,
+        ),
+        "improvement_percent": round(
+            improvement_percent,
+            2,
+        ),
+    }
 
 
 def optimize_delivery_stop(
@@ -483,7 +697,10 @@ def optimize_delivery_stop(
         if result["recommended_stop"] is not None
     ]
 
-    recommended_delivery_order = _build_nearest_neighbor_order(
+    (
+        recommended_delivery_order,
+        route_optimization,
+    ) = _build_optimized_delivery_order(
         start=start,
         destination_results=destination_results,
     )
@@ -514,12 +731,13 @@ def optimize_delivery_stop(
                 "혼잡도 가중합"
             ),
             "delivery_order": (
-                "추천 정차지 직선거리 기반 최근접 이웃"
-                if start is not None
-                else "출발지 미입력으로 배송지 입력 순서 유지"
-            ),
+            "직선거리 기반 최근접 이웃 경로 생성 후 2-opt 개선"
+            if start is not None
+            else "출발지 미입력으로 배송지 입력 순서 유지"
+        ),
             "walking_distance_fallback": (
                 "도보 데이터가 없으면 직선거리와 분당 80m로 추정"
             ),
+        "route_optimization": route_optimization,
         },
     }
