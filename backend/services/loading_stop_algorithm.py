@@ -13,11 +13,13 @@
 """
 
 from __future__ import annotations
+from itertools import  permutations
 
 from math import asin, cos, radians, sin, sqrt
 from typing import Any
 
 WALKING_SPEED_M_PER_MINUTE = 80.0
+EXACT_SEARCH_MAX_DESTINATIONS = 8
 
 SCORE_WEIGHTS = {
     "legality": 30.0,
@@ -342,6 +344,39 @@ def _calculate_route_distance(
 
     return total_distance_m
 
+def _build_exact_sequence(
+    start: dict[str, Any],
+    destination_results: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """
+    가능한 모든 배송 순서를 비교하여
+    총 이동거리가 가장 짧은 순서를 반환한다.
+
+    현재는 마지막 배송 후 출발지로 복귀하지 않는
+    편도 배송 경로를 기준으로 한다.
+    """
+
+    if not destination_results:
+        return [], 0
+
+    best_sequence: list[dict[str, Any]] | None = None
+    best_distance_m = float("inf")
+    evaluated_route_count = 0
+
+    for sequence in permutations(destination_results):
+        evaluated_route_count += 1
+        sequence_list = list(sequence)
+
+        distance_m = _calculate_route_distance(
+            start=start,
+            ordered_results=sequence_list,
+        )
+
+        if distance_m < best_distance_m:
+            best_distance_m = distance_m
+            best_sequence = sequence_list
+
+    return best_sequence or [], evaluated_route_count
 
 def _build_nearest_neighbor_sequence(
     start: dict[str, Any],
@@ -494,8 +529,11 @@ def _build_optimized_delivery_order(
     destination_results: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
-    최근접 이웃으로 초기 경로를 만든 후
-    2-opt를 적용해 경로를 개선한다.
+    배송지 개수에 따라 경로 알고리즘을 자동 선택한다.
+
+    - 출발지 없음: 입력 순서 유지
+    - 배송지 8개 이하: 완전탐색
+    - 배송지 9개 이상: 최근접 이웃 + 2-opt
     """
 
     selectable_results = [
@@ -504,9 +542,14 @@ def _build_optimized_delivery_order(
         if result.get("recommended_stop") is not None
     ]
 
-    if not selectable_results:
+    destination_count = len(selectable_results)
+
+    if destination_count == 0:
         return [], {
             "algorithm": "none",
+            "is_optimal": True,
+            "destination_count": 0,
+            "evaluated_route_count": 0,
             "initial_distance_m": 0,
             "optimized_distance_m": 0,
             "improvement_distance_m": 0,
@@ -518,9 +561,7 @@ def _build_optimized_delivery_order(
             {
                 "order": index,
                 "destination_id": result["destination_id"],
-                "destination_name": result[
-                    "destination_name"
-                ],
+                "destination_name": result["destination_name"],
                 "stop_candidate_id": result[
                     "recommended_stop"
                 ]["candidate_id"],
@@ -534,10 +575,74 @@ def _build_optimized_delivery_order(
 
         return delivery_order, {
             "algorithm": "input_order",
+            "is_optimal": False,
+            "destination_count": destination_count,
+            "evaluated_route_count": 0,
             "initial_distance_m": None,
             "optimized_distance_m": None,
             "improvement_distance_m": None,
             "improvement_percent": None,
+        }
+
+    if destination_count <= EXACT_SEARCH_MAX_DESTINATIONS:
+        # 입력된 배송지 순서의 거리
+        initial_distance_m = _calculate_route_distance(
+            start=start,
+            ordered_results=selectable_results,
+        )
+
+        # 모든 배송 순서를 비교하여 최단 경로 탐색
+        (
+            optimized_sequence,
+            evaluated_route_count,
+        ) = _build_exact_sequence(
+            start=start,
+            destination_results=selectable_results,
+        )
+
+        # 완전탐색으로 찾은 최단 경로 거리
+        optimized_distance_m = _calculate_route_distance(
+            start=start,
+            ordered_results=optimized_sequence,
+        )
+
+        improvement_distance_m = max(
+            0.0,
+            initial_distance_m - optimized_distance_m,
+        )
+
+        improvement_percent = (
+            improvement_distance_m / initial_distance_m * 100
+            if initial_distance_m > 0
+            else 0
+        )
+
+        delivery_order = _format_delivery_order(
+            start=start,
+            ordered_results=optimized_sequence,
+        )
+
+        return delivery_order, {
+            "algorithm": "exact_permutation",
+            "is_optimal": True,
+            "destination_count": destination_count,
+            "evaluated_route_count": evaluated_route_count,
+            "initial_distance_m": round(
+                initial_distance_m,
+                1,
+            ),
+            "optimized_distance_m": round(
+                optimized_distance_m,
+                1,
+            ),
+            "improvement_distance_m": round(
+                improvement_distance_m,
+                1,
+            ),
+            "improvement_percent": round(
+                improvement_percent,
+                2,
+            ),
         }
 
     nearest_neighbor_sequence = (
@@ -562,8 +667,9 @@ def _build_optimized_delivery_order(
         ordered_results=optimized_sequence,
     )
 
-    improvement_distance_m = (
-        initial_distance_m - optimized_distance_m
+    improvement_distance_m = max(
+        0.0,
+        initial_distance_m - optimized_distance_m,
     )
 
     improvement_percent = (
@@ -579,7 +685,13 @@ def _build_optimized_delivery_order(
 
     return delivery_order, {
         "algorithm": "nearest_neighbor_with_two_opt",
-        "initial_distance_m": round(initial_distance_m, 1),
+        "is_optimal": False,
+        "destination_count": destination_count,
+        "evaluated_route_count": None,
+        "initial_distance_m": round(
+            initial_distance_m,
+            1,
+        ),
         "optimized_distance_m": round(
             optimized_distance_m,
             1,
@@ -704,7 +816,6 @@ def optimize_delivery_stop(
         start=start,
         destination_results=destination_results,
     )
-
     unresolved_destination_ids = [
         result["destination_id"]
         for result in destination_results
@@ -718,6 +829,7 @@ def optimize_delivery_stop(
         # 기존 단일 후보 응답을 참조하는 코드가 있을 경우를 위한 호환 필드
         "selected_stop": selected_stops[0] if selected_stops else None,
         "recommended_delivery_order": recommended_delivery_order,
+        "route_optimization": route_optimization,
         "unresolved_destination_ids": unresolved_destination_ids,
         "total_destination_count": len(destinations),
         "recommended_destination_count": len(selected_stops),
@@ -727,17 +839,18 @@ def optimize_delivery_stop(
         "score_weights": SCORE_WEIGHTS,
         "calculation_method": {
             "stop_selection": (
-                "하드 제약 필터링 후 적법성·도보 이동·도로 폭·"
-                "혼잡도 가중합"
+                "하드 제약 필터링 후 "
+                "적법성·도보 이동·도로 폭·혼잡도 가중합"
             ),
             "delivery_order": (
-            "직선거리 기반 최근접 이웃 경로 생성 후 2-opt 개선"
-            if start is not None
-            else "출발지 미입력으로 배송지 입력 순서 유지"
-        ),
-            "walking_distance_fallback": (
-                "도보 데이터가 없으면 직선거리와 분당 80m로 추정"
+                "배송지 8개 이하는 완전탐색, "
+                "9개 이상은 최근접 이웃과 2-opt 적용"
+                if start is not None
+                else "출발지 미입력으로 배송지 입력 순서 유지"
             ),
-        "route_optimization": route_optimization,
+            "walking_distance_fallback": (
+                "도보 데이터가 없으면 "
+                "직선거리와 분당 80m로 추정"
+            ),
         },
     }
