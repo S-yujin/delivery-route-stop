@@ -50,11 +50,13 @@ function InputPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const validDestinations = destinations.filter(
-      (destination) => destination.trim() !== ""
-    );
+    const trimmedStart = start.trim();
 
-    if (start.trim() === "") {
+    const validDestinations = destinations
+      .map((destination) => destination.trim())
+      .filter((destination) => destination !== "");
+
+    if (trimmedStart === "") {
       alert("출발지를 입력해주세요.");
       return;
     }
@@ -68,7 +70,7 @@ function InputPage() {
 
     try {
       const startGeocode = await geocodeWithMessage(
-        start,
+        trimmedStart,
         "출발지"
       );
 
@@ -85,7 +87,7 @@ function InputPage() {
         id: "START",
         type: "start",
         name: "출발지",
-        address: start,
+        address: trimmedStart,
         latitude: startGeocode.latitude,
         longitude: startGeocode.longitude,
       };
@@ -147,7 +149,7 @@ function InputPage() {
 
       navigate("/result", {
         state: {
-          start,
+          start: trimmedStart,
           destinations: validDestinations,
           vehicleType,
           departureTime,
@@ -169,7 +171,7 @@ function InputPage() {
         <div className="loading-screen">
           <div className="loading-spinner" />
           <h1>추천 경로를 분석 중입니다.</h1>
-          <p>배송 순서와 정차 후보지를 계산하고 있습니다.</p>
+          <p>주소와 도로 경로를 분석하고 있습니다.</p>
         </div>
       </main>
     );
