@@ -18,6 +18,17 @@
 - Backend / Data
 """
 
+from datetime import datetime
+from pathlib import Path
+import sys
+
+# backend 폴더에서 uvicorn app:app으로 실행할 때도
+# parking_segment_service 내부의 backend.services import가 동작하도록
+# 프로젝트 루트를 Python 모듈 검색 경로에 추가한다.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from fastapi import APIRouter
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -28,8 +39,11 @@ from services.optimization_service import (
     convert_address_to_coordinate,
 )
 from services.loading_stop_algorithm import (
-    optimize_delivery_stop,
+    recommend_stops_from_parking_segments,
     select_next_stop_from_plan,
+)
+from services.parking_segment_service import (
+    find_nearby_parking_segments,
 )
 
 
@@ -310,7 +324,10 @@ class StopCandidate(BaseModel):
 
 class OptimizeRequest(BaseModel):
     """
-    최적 정차지 추천 요청 구조
+    SHP 데이터 기반 최적 정차지 추천 요청 구조.
+
+    프론트엔드는 출발지, 차량 정보, 배송지만 전달한다.
+    정차 후보지는 백엔드가 배송지 주변 SHP 데이터에서 생성한다.
     """
 
     start: Coordinate | None = Field(
@@ -335,16 +352,46 @@ class OptimizeRequest(BaseModel):
         ),
     )
 
+    search_radius_m: float = Field(
+        default=1000,
+        gt=0,
+        description="배송지 주변 SHP 정차 후보 검색 반경(m)",
+    )
+
+    candidate_limit: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="배송지별 SHP 정차 후보 최대 개수",
+    )
+
+    request_datetime: datetime | None = Field(
+        default=None,
+        description=(
+            "정차 허용 시간 판별 기준 일시. "
+            "미입력 시 서비스 기본 기준 사용"
+        ),
+    )
+
+    only_time_allowed: bool = Field(
+        default=False,
+        description=(
+            "True이면 요청 시간에 정차가 허용된 "
+            "SHP 구간만 후보로 사용"
+        ),
+    )
+
+    is_public_holiday: bool | None = Field(
+        default=None,
+        description=(
+            "공휴일 여부. 알 수 없으면 null"
+        ),
+    )
+
     destinations: list[Destination] = Field(
         ...,
         min_length=1,
         description="배송지 목록",
-    )
-
-    stop_candidates: list[StopCandidate] = Field(
-        ...,
-        min_length=1,
-        description="정차 후보지 목록",
     )
 
 
@@ -434,25 +481,21 @@ def optimize_route(
     request: OptimizeRequest,
 ) -> dict:
     """
-    배송지별 정차 후보지를 평가하여 추천 정차지를 반환한다.
+    배송지 좌표 주변의 SHP 주정차 허용구간을 조회하고,
+    생성된 후보를 평가하여 추천 정차지와 배송 순서를 반환한다.
 
     처리 순서
-    1. 배송지별 정차 후보지 분리
-    2. 하드 제약 조건으로 부적합 후보 제거
-    3. 적법성, 도보 이동, 도로 폭, 혼잡도 점수 계산
-    4. 배송지별 추천 정차지 선정
-    5. 출발지가 있으면 최근접 이웃 방식으로 배송 순서 계산
+    1. 프론트 요청의 배송지 데이터를 변환
+    2. 배송지별 주변 SHP 주정차 허용구간 검색
+    3. SHP 검색 결과를 정차 후보 형식으로 변환
+    4. 하드 제약 및 점수 기준으로 추천 정차지 선정
+    5. 출발지가 있으면 배송 순서 계산
     """
 
     try:
         destinations = [
             destination.model_dump()
             for destination in request.destinations
-        ]
-
-        stop_candidates = [
-            candidate.model_dump()
-            for candidate in request.stop_candidates
         ]
 
         vehicle_profile = request.vehicle.model_dump()
@@ -463,14 +506,46 @@ def optimize_route(
             else None
         )
 
-        result = optimize_delivery_stop(
+        parking_segments_by_destination: dict[
+            str,
+            list[dict],
+        ] = {}
+
+        candidate_counts: dict[str, int] = {}
+
+        for destination in destinations:
+            destination_id = str(destination["id"])
+
+            parking_segments = find_nearby_parking_segments(
+                latitude=destination["latitude"],
+                longitude=destination["longitude"],
+                search_radius_m=request.search_radius_m,
+                limit=request.candidate_limit,
+                request_datetime=request.request_datetime,
+                only_time_allowed=request.only_time_allowed,
+                is_public_holiday=request.is_public_holiday,
+            )
+
+            parking_segments_by_destination[
+                destination_id
+            ] = parking_segments
+            candidate_counts[destination_id] = len(
+                parking_segments
+            )
+
+        result = recommend_stops_from_parking_segments(
             destinations=destinations,
-            stop_candidates=stop_candidates,
+            parking_segments_by_destination=(
+                parking_segments_by_destination
+            ),
             vehicle_profile=vehicle_profile,
             max_walking_distance_m=(
                 request.max_walking_distance_m
             ),
             start=start,
+            max_candidates_per_destination=(
+                request.candidate_limit
+            ),
         )
 
         if not result["success"]:
@@ -482,10 +557,30 @@ def optimize_route(
                 ),
             )
 
+        # SHP 조회 결과를 프론트와 Swagger에서 확인할 수 있도록
+        # 배송지별 검색 후보 개수를 응답에 함께 제공한다.
+        result["shp_candidate_counts"] = candidate_counts
+        result["search_radius_m"] = request.search_radius_m
+
         return result
 
     except HTTPException:
         raise
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "SHP 데이터를 찾지 못했습니다: "
+                f"{str(error)}"
+            ),
+        ) from error
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
 
     except Exception as error:
         raise HTTPException(
@@ -495,6 +590,7 @@ def optimize_route(
                 f"{str(error)}"
             ),
         ) from error
+
 
 @router.post("/next-stop")
 def next_stop(request: NextStopRequest) -> dict:

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   geocodeAddress,
   getDirections,
+  optimizeRoute,
  } from "../api/routeApi";
 
 async function geocodeWithMessage(address, label) {
@@ -104,6 +105,90 @@ function InputPage() {
           delivery_count: 1,
           service_time_minutes: 10,
         }));
+
+      const [hours, minutes] = departureTime
+      .split(":")
+      .map(Number);
+    
+      const requestDateTime = new Date();
+      
+      requestDateTime.setHours(
+        hours,
+        minutes,
+        0,
+        0
+      );
+
+      /*
+      원본
+      const optimizeRequest = {
+        start: {
+          latitude: startLocation.latitude,
+          longitude: startLocation.longitude,
+        },
+
+      vehicle: {
+        vehicle_type: vehicleType,
+      },
+      
+      max_walking_distance_m: 300,
+      search_radius_m: 1000,
+      candidate_limit: 5,
+      request_datetime: requestDateTime.toISOString(),
+      only_time_allowed: false,
+      is_public_holiday: false,
+      
+      destinations: destinationLocations.map(
+        (destination) => ({
+          id: destination.id,
+          name: destination.name,
+          address: destination.address,
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+          delivery_count: destination.delivery_count,
+          service_time_minutes: destination.service_time_minutes,
+        })
+      ),
+    }; 
+    */
+
+   // 테스트용
+  const optimizeRequest = {
+  start: {
+    longitude: startLocation.longitude,
+    latitude: startLocation.latitude,
+  },
+
+  vehicle: {
+    vehicle_type: vehicleType,
+    width_m: 1.8,
+    height_m: 2,
+    side_clearance_m: 0.5,
+  },
+
+  max_walking_distance_m: 700,
+  search_radius_m: 1500,
+  candidate_limit: 10,
+
+  request_datetime: requestDateTime,
+  only_time_allowed: false,
+  is_public_holiday: false,
+
+  destinations: destinationLocations.map(
+    (destination) => ({
+      id: destination.id,
+      name: destination.address,
+      latitude: destination.latitude,
+      longitude: destination.longitude,
+    })
+  ),
+};
+
+    const routePlan = await optimizeRoute(
+      optimizeRequest
+    );
+    
+    console.log("Optimize 전체 응답:", routePlan);
       
       const routePoints = [
         startLocation,
@@ -156,6 +241,7 @@ function InputPage() {
           startLocation,
           destinationLocations,
           directionsResult,
+          routePlan,
         },
       });
     } catch (error) {
