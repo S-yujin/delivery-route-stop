@@ -54,3 +54,17 @@ export async function getDirections(start, goal) {
     }),
   });
 }
+
+/* ===========================
+   추가
+=========================== */
+
+export async function getNextStop(requestData) {
+  return requestApi("/api/routes/next-stop", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestData),
+  });
+}

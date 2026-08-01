@@ -512,6 +512,21 @@ button:disabled {
   background-color: #e58a17;
 }
 
+.marker-selected-stop {
+  min-width: 52px;
+  height: 40px;
+  padding: 0 10px;
+  border: 3px solid #ffffff;
+  border-radius: 20px 20px 20px 4px;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
 
 .marker-stop-selected {
   background-color: #d64545;
@@ -680,4 +695,219 @@ button:disabled {
     border-left: 1px solid #e2e5e9;
     border-right: 1px solid #e2e5e9;
   }
+}
+
+.result-summary-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 16px 0 22px;
+}
+
+.result-summary-card {
+  min-width: 0;
+  padding: 14px 10px;
+  border: 1px solid #d9e0e8;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.result-summary-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.result-summary-card strong {
+  color: #172033;
+  font-size: 18px;
+}
+
+.map-section,
+.stop-candidate-section,
+.delivery-progress-section {
+  margin-top: 22px;
+}
+
+.map-only-container {
+  overflow: hidden;
+  border: 1px solid #d9e0e8;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.stop-candidate-section {
+  padding: 16px;
+  border: 1px solid #d9e0e8;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.candidate-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.candidate-sort-select {
+  min-width: 126px;
+  padding: 8px 10px;
+  border: 1px solid #d9e0e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.stop-candidate-list {
+  display: grid;
+  gap: 10px;
+}
+
+.stop-candidate-card {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d9e0e8;
+  border-radius: 12px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stop-candidate-card.selected {
+  border: 2px solid #f97316;
+  background: #fff8f2;
+}
+
+.candidate-card-header {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.candidate-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #0f9f6e;
+  color: #ffffff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.candidate-card-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.candidate-score {
+  color: #0f766e;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.candidate-card-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 12px;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.selected-stop-label {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selected-candidate-summary {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f3f6f9;
+}
+
+.selected-candidate-summary p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+@media (max-width: 359px) {
+  .result-summary-section {
+    grid-template-columns: 1fr;
+  }
+
+  .candidate-heading {
+    flex-direction: column;
+  }
+
+  .candidate-sort-select {
+    width: 100%;
+  }
+}
+
+.route-order-item.current {
+  border-color: #f97316;
+  background: #fff8f2;
+}
+
+.route-order-item.completed {
+  opacity: 0.65;
+  background: #f3f4f6;
+}
+
+.delivery-current-info {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: #fff8f2;
+}
+
+.delivery-current-info span {
+  display: block;
+  margin-bottom: 6px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.delivery-current-info strong {
+  color: #172033;
+  font-size: 17px;
+}
+
+.delivery-current-info p {
+  margin: 8px 0 0;
+  color: #ea580c;
+  font-size: 13px;
+}
+
+.delivery-completed-box {
+  padding: 18px;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  background: #ecfdf5;
+  text-align: center;
+}
+
+.delivery-completed-box strong {
+  color: #047857;
+  font-size: 18px;
+}
+
+.delivery-completed-box p {
+  margin: 8px 0 16px;
+  color: #4b5563;
 }
