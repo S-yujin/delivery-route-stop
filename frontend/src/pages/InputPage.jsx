@@ -241,11 +241,25 @@ function InputPage() {
       /*
        * 입력된 배송 순서 기준 도로 경로 요청
        */
+      const recommendedOrder =
+        routePlan?.recommended_delivery_order ?? [];
+
+      const orderedDestinations =
+        recommendedOrder.length > 0
+          ? recommendedOrder
+            .map((delivery) =>
+              destinationLocations.find(
+                (destination) =>
+                  destination.id ===
+                  delivery.destination_id
+                )).filter(Boolean)
+          : destinationLocations;
+
       const routePoints = [
         startLocation,
-        ...destinationLocations,
+        ...orderedDestinations,
       ];
-
+      
       const directionResults =
         await Promise.all(
           routePoints

@@ -25,7 +25,7 @@ function ResultPage() {
   } = inputData ?? {};
 
   /*
-   * 모든 useState는 조건문보다 먼저 선언해야 함
+   * 모든 useState는 조건문보다 먼저 선언
    */
   const [currentPosition, setCurrentPosition] =
     useState(() =>
@@ -51,7 +51,8 @@ function ResultPage() {
   ] = useState(false);
 
   /*
-   * location.state 없이 결과 페이지에 직접 접근한 경우
+   * location.state 없이 결과 페이지에
+   * 직접 접근한 경우
    */
   if (!inputData) {
     return (
@@ -91,7 +92,7 @@ function ResultPage() {
    * 정식 응답:
    * response.next_destination
    *
-   * 기존 백엔드 응답 형식도 같이 대응:
+   * 기존 백엔드 응답 형식도 대응:
    * response.destination_id
    */
   const responseNextDestination =
@@ -100,6 +101,7 @@ function ResultPage() {
       ? {
           destination_id:
             nextStopResult.destination_id,
+
           destination_name:
             nextStopResult.destination_name,
         }
@@ -122,7 +124,7 @@ function ResultPage() {
     allRecommendedCompleted;
 
   /*
-   * 현재 배송 대상
+   * 현재 배송 대상 ID
    */
   const currentDestinationId =
     isDeliveryCompleted
@@ -139,6 +141,9 @@ function ResultPage() {
         )?.destination_id ??
         null;
 
+  /*
+   * 현재 배송 대상 이름
+   */
   const currentDestinationName =
     responseNextDestination
       ?.destination_name ??
@@ -152,8 +157,7 @@ function ResultPage() {
   /*
    * Next Stop API가 반환한 다음 정차지
    *
-   * API 문서 형식과 기존 백엔드 형식을
-   * 모두 처리한다.
+   * 여러 백엔드 응답 형식을 함께 처리
    */
   const responseNextStop =
     nextStopResult?.next_stop
@@ -171,7 +175,7 @@ function ResultPage() {
     null;
 
   /*
-   * 첫 화면은 Optimize 결과,
+   * 최초 화면은 Optimize 결과,
    * 배송 완료 후에는 Next Stop 결과 사용
    */
   const activeSelectedStop =
@@ -191,6 +195,7 @@ function ResultPage() {
             .candidate_rankings ?? []
         ).map((candidate) => ({
           id: candidate.candidate_id,
+
           type: "stop",
 
           destinationId:
@@ -202,6 +207,7 @@ function ResultPage() {
           address: candidate.address,
 
           latitude: candidate.latitude,
+
           longitude: candidate.longitude,
 
           score:
@@ -229,8 +235,8 @@ function ResultPage() {
     ) ?? [];
 
   /*
-   * 현재 실제 추천 정차지를
-   * 지도와 후보 목록에서 사용할 형태로 변환
+   * 현재 실제 추천 정차지를 지도와
+   * 후보 목록에서 사용할 형태로 변환
    */
   const normalizedActiveStop =
     activeSelectedStop
@@ -293,7 +299,8 @@ function ResultPage() {
       : null;
 
   /*
-   * 현재 추천 정차지만 selected-stop으로 표시
+   * 현재 추천 정차지만
+   * selected-stop으로 표시
    */
   const stopCandidates =
     baseStopCandidates.map(
@@ -302,14 +309,17 @@ function ResultPage() {
 
         type:
           candidate.id ===
-          normalizedActiveStop?.id
+            normalizedActiveStop?.id  &&
+          candidate.destinationId ===
+            normalizedActiveStop?.destinationId
             ? "selected-stop"
             : "stop",
       })
     );
 
   /*
-   * Next Stop 정차지가 기존 후보 목록에 없으면 추가
+   * Next Stop 정차지가 기존 후보 목록에
+   * 없으면 별도로 추가
    */
   const displayStopCandidates =
     normalizedActiveStop &&
@@ -323,6 +333,15 @@ function ResultPage() {
           normalizedActiveStop,
         ]
       : stopCandidates;
+
+  const currentStopCandidates =
+    isDeliveryCompleted
+      ? []
+      : displayStopCandidates.filter(
+          (candidate) =>
+            candidate.destinationId ===
+           currentDestinationId
+      );
 
   const remainingCount =
     isDeliveryCompleted
@@ -354,9 +373,13 @@ function ResultPage() {
       )
     ),
 
-    candidateCount: displayStopCandidates.length,
+    candidateCount:
+      currentStopCandidates.length,
   };
 
+  /*
+   * GPS 현재 위치 갱신
+   */
   const updateCurrentPosition = () => {
     return new Promise(
       (resolve, reject) => {
@@ -401,6 +424,10 @@ function ResultPage() {
     );
   };
 
+  /*
+   * 현재 배송 완료 처리 및
+   * 다음 배송지 요청
+   */
   const handleDeliveryComplete =
     async () => {
       if (!currentDestinationId) {
@@ -412,7 +439,9 @@ function ResultPage() {
       }
 
       if (!routePlan) {
-        alert("배송 계획 정보가 없습니다.");
+        alert(
+          "배송 계획 정보가 없습니다."
+        );
 
         return;
       }
@@ -458,7 +487,7 @@ function ResultPage() {
               nextCompletedDestinationIds,
 
             /*
-             * optimize 전체 응답 전달
+             * Optimize 전체 응답 전달
              */
             plan: routePlan,
           });
@@ -474,13 +503,44 @@ function ResultPage() {
           response
         );
       } catch (error) {
+        const errorMessage =
+          error?.message ?? "";
+
+        /*
+         * 마지막 배송지를 완료하여
+         * 다음 배송지가 없는 경우
+         */
+        if (
+          errorMessage.includes(
+            "남은 배송지가 없습니다"
+          )
+        ) {
+          setCompletedDestinationIds(
+            nextCompletedDestinationIds
+          );
+
+          setNextStopResult({
+            completed: true,
+            next_destination: null,
+            next_stop: null,
+            remaining_count: 0,
+          });
+
+          console.log(
+            "모든 배송 완료:",
+            nextCompletedDestinationIds
+          );
+
+          return;
+        }
+
         console.error(
           "다음 정차지 요청 실패:",
           error
         );
 
         alert(
-          error.message ||
+          errorMessage ||
             "다음 정차지를 불러오지 못했습니다."
         );
       } finally {
@@ -516,11 +576,15 @@ function ResultPage() {
 
         <div className="summary-item">
           <span>출발지</span>
-          <strong>{start}</strong>
+
+          <strong>
+            {start}
+          </strong>
         </div>
 
         <div className="summary-item">
           <span>배송지 수</span>
+
           <strong>
             {destinations.length}곳
           </strong>
@@ -552,8 +616,13 @@ function ResultPage() {
                 className="destination-summary-item"
                 key={`${destination}-${index}`}
               >
-                <span>{index + 1}</span>
-                <p>{destination}</p>
+                <span>
+                  {index + 1}
+                </span>
+
+                <p>
+                  {destination}
+                </p>
               </div>
             )
           )}
@@ -578,7 +647,8 @@ function ResultPage() {
 
           <strong>
             {
-              routeSummary.estimatedTimeMinutes
+              routeSummary
+                .estimatedTimeMinutes
             }
             분
           </strong>
@@ -612,7 +682,9 @@ function ResultPage() {
           directionsResult={
             directionsResult
           }
-          stopCandidates={displayStopCandidates}
+          stopCandidates={
+             currentStopCandidates
+          }
         />
       </section>
 
@@ -634,8 +706,13 @@ function ResultPage() {
             </span>
 
             <div className="route-order-content">
-              <strong>{start}</strong>
-              <span>배송 시작 위치</span>
+              <strong>
+                {start}
+              </strong>
+
+              <span>
+                배송 시작 위치
+              </span>
             </div>
           </div>
 
@@ -660,8 +737,14 @@ function ResultPage() {
 
                 const itemClassName = [
                   "route-order-item",
-                  isCompleted ? "completed" : "",
-                  isCurrent ? "current" : "",
+
+                  isCompleted
+                    ? "completed"
+                    : "",
+
+                  isCurrent
+                    ? "current"
+                    : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
@@ -669,7 +752,9 @@ function ResultPage() {
                 return (
                   <div
                     className={itemClassName}
-                    key={delivery.destination_id}
+                    key={
+                      delivery.destination_id
+                    }
                   >
                     <span className="route-order-badge">
                       {delivery.order}
@@ -712,18 +797,22 @@ function ResultPage() {
           )}
         </div>
 
-        {unresolvedDestinationIds.length > 0 && (
+        {unresolvedDestinationIds.length >
+          0 && (
           <div className="empty-candidates">
             <p>
               정차 후보를 찾지 못한 배송지:{" "}
-              {unresolvedDestinationIds.join(", ")}
+              {unresolvedDestinationIds.join(
+                ", "
+              )}
             </p>
           </div>
         )}
       </section>
 
       {/* 6. 배송 진행 */}
-      {(hasRecommendedOrder || nextStopResult) && (
+      {(hasRecommendedOrder ||
+        nextStopResult) && (
         <section className="delivery-progress-section">
           <h2>배송 진행</h2>
 
@@ -735,7 +824,9 @@ function ResultPage() {
 
               <p>
                 총{" "}
-                {completedDestinationIds.length}
+                {
+                  completedDestinationIds.length
+                }
                 곳의 배송을 완료했습니다.
               </p>
 
@@ -750,7 +841,9 @@ function ResultPage() {
           ) : (
             <>
               <div className="delivery-current-info">
-                <span>현재 배송 대상</span>
+                <span>
+                  현재 배송 대상
+                </span>
 
                 <strong>
                   {currentDestinationName ??
@@ -760,27 +853,38 @@ function ResultPage() {
                 {normalizedActiveStop && (
                   <p>
                     추천 정차지:{" "}
-                    {normalizedActiveStop.name}
+                    {
+                      normalizedActiveStop.name
+                    }
                   </p>
                 )}
               </div>
 
               <p>
                 남은 배송지:{" "}
-                <strong>{remainingCount}곳</strong>
+
+                <strong>
+                  {remainingCount}곳
+                </strong>
               </p>
 
               <p>
                 완료된 배송지:{" "}
+
                 <strong>
-                  {completedDestinationIds.length}곳
+                  {
+                    completedDestinationIds.length
+                  }
+                  곳
                 </strong>
               </p>
 
               <button
                 className="full-width-button"
                 type="button"
-                onClick={handleDeliveryComplete}
+                onClick={
+                  handleDeliveryComplete
+                }
                 disabled={
                   isNextStopLoading ||
                   !currentDestinationId
@@ -797,7 +901,9 @@ function ResultPage() {
 
       {/* 7. 추천 정차 후보지 */}
       <StopCandidatePanel
-        stopCandidates={displayStopCandidates}
+        stopCandidates={
+          currentStopCandidates
+        }
       />
     </main>
   );
